@@ -71,6 +71,20 @@ button {
     font-weight: 400;
 }
 
+.property-details {
+    display: grid;
+    max-width: 360px;
+    gap: 2px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.3;
+}
+
+.property-details strong {
+    color: var(--ink);
+    font-size: 12px;
+}
+
 .header-date {
     display: grid;
     gap: 3px;
@@ -535,6 +549,15 @@ select:focus {
 
     .brand span {
         display: none;
+    }
+
+    .property-details {
+        max-width: 180px;
+        font-size: 10px;
+    }
+
+    .property-details strong {
+        font-size: 11px;
     }
 
     .header-date {

@@ -26,6 +26,19 @@
     function money(value) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(value || 0); }
     function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]); }
     function formatDate(value) { return value ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${value}T00:00:00`)) : '—'; }
+    function getDueDate(joiningDate) {
+        if (!joiningDate) return null;
+        const day = Number(joiningDate.slice(-2));
+        const lastDay = new Date(currentYear, currentMonthNumber, 0).getDate();
+        return `${currentYear}-${String(currentMonthNumber).padStart(2, '0')}-${String(Math.min(day, lastDay)).padStart(2, '0')}`;
+    }
+    function getWhatsAppLink(tenant) {
+        const phone = tenant.phone.replace(/\D/g, '');
+        if (!phone) return '';
+        const dueDate = formatDate(getDueDate(tenant.joiningDate));
+        const message = `Hi ${tenant.name}, your rent of ${money(tenant.rent)} for room ${tenant.room} was due on ${dueDate}. Please pay it at your earliest convenience.`;
+        return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    }
     function showToast(message) { clearTimeout(toastTimer); elements.toast.textContent = message; elements.toast.classList.add('visible'); toastTimer = setTimeout(() => elements.toast.classList.remove('visible'), 3000); }
     function setBusy(value) { busy = value; document.querySelectorAll('button').forEach(button => { button.disabled = value; }); }
     function showForm() { if (!supabaseClient) return; elements.modal.hidden = false; document.body.classList.add('modal-open'); document.getElementById('tenant-name').focus(); }
@@ -83,6 +96,7 @@
         <div class="tenant-detail"><span class="tenant-label">Monthly rent</span><strong>${money(tenant.rent)}</strong></div>
         <div class="tenant-detail"><span class="tenant-label">Joined</span><strong>${formatDate(tenant.joiningDate)}</strong></div>
         <div><span class="tenant-label">${currentMonth}</span><button class="status-button ${tenant.status === 'PAID' ? 'status-paid' : 'status-unpaid'}" data-action="toggle" data-id="${tenant.id}" type="button">${tenant.status}</button></div>
+                ${tenant.phone ? `<a class="whatsapp-button" href="${getWhatsAppLink(tenant)}" target="_blank" rel="noopener" aria-label="Send WhatsApp reminder to ${escapeHtml(tenant.name)}" title="Send WhatsApp reminder">WhatsApp</a>` : '<span class="whatsapp-button whatsapp-disabled" aria-label="No phone number available">WhatsApp</span>'}
         <button class="delete-button" data-action="delete" data-id="${tenant.id}" type="button">Delete</button>
       </article>`).join('');
         const noMatches = tenants.length > 0 && visible.length === 0;

@@ -296,7 +296,7 @@ select:focus {
 
 .tenant-row {
     display: grid;
-    grid-template-columns: minmax(155px, 1.4fr) minmax(90px, .8fr) minmax(100px, .9fr) minmax(95px, .8fr) minmax(115px, .8fr) minmax(100px, .7fr);
+    grid-template-columns: minmax(155px, 1.4fr) minmax(90px, .8fr) minmax(100px, .9fr) minmax(95px, .8fr) minmax(115px, .8fr) minmax(100px, .7fr) minmax(100px, .7fr);
     align-items: center;
     gap: 12px;
     padding: 14px 16px;
@@ -357,6 +357,23 @@ select:focus {
     color: #a34e4e;
     background: transparent;
     font-size: 12px;
+}
+
+.whatsapp-button {
+    color: #16724a;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.whatsapp-button:hover {
+    text-decoration: underline;
+}
+
+.whatsapp-disabled {
+    color: var(--muted);
+    cursor: not-allowed;
+    opacity: .65;
 }
 
 .delete-button:hover {
@@ -616,7 +633,7 @@ select:focus {
         grid-column: 1 / 2 !important;
     }
 
-    .tenant-row> :nth-child(6) {
+    .tenant-row> :nth-child(5) {
         grid-column: 2 / 3 !important;
         grid-row: 1 / 2;
         text-align: right !important;

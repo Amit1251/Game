@@ -1,34 +1,57 @@
 (() => {
     'use strict';
 
-    const storageKey = 'house-rental-tenants-v1';
-    const monthKey = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: '2-digit' }).format(new Date());
-    const currentMonth = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long' }).format(new Date());
-    const currentDate = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date());
+    const config = window.HOUSE_RENTAL_SUPABASE_CONFIG || {};
+    const supabaseClient = window.supabase && config.url && config.anonKey && !config.url.startsWith('YOUR_') && !config.anonKey.startsWith('YOUR_')
+        ? window.supabase.createClient(config.url, config.anonKey)
+        : null;
+    const date = new Date();
+    const currentMonthNumber = date.getMonth() + 1;
+    const currentYear = date.getFullYear();
+    const currentMonth = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long' }).format(date);
+    const currentDate = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(date);
     const elements = {
         list: document.getElementById('tenant-list'), empty: document.getElementById('empty-state'), emptyTitle: document.getElementById('empty-title'), emptyCopy: document.getElementById('empty-copy'),
         form: document.getElementById('tenant-form'), modal: document.getElementById('tenant-modal'), error: document.getElementById('form-error'), toast: document.getElementById('toast'),
         search: document.getElementById('search'), filter: document.getElementById('status-filter'), sort: document.getElementById('sort-order'),
-        totalTenants: document.getElementById('total-tenants'), totalRent: document.getElementById('total-rent'), totalPaid: document.getElementById('total-paid'), totalUnpaid: document.getElementById('total-unpaid'), tenantCount: document.getElementById('tenant-count'), importFile: document.getElementById('import-file')
+        totalTenants: document.getElementById('total-tenants'), totalRent: document.getElementById('total-rent'), totalPaid: document.getElementById('total-paid'), totalUnpaid: document.getElementById('total-unpaid'), tenantCount: document.getElementById('tenant-count')
     };
-
-    let tenants = loadTenants();
+    let tenants = [];
+    let busy = false;
     let toastTimer;
+
     document.getElementById('current-month').textContent = currentMonth;
     document.getElementById('current-date').textContent = currentDate;
 
-    function loadTenants() {
-        try {
-            const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
-            return Array.isArray(saved) ? saved : [];
-        } catch (error) {
-            return [];
-        }
-    }
-
-    function saveTenants() { localStorage.setItem(storageKey, JSON.stringify(tenants)); }
     function money(value) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(value || 0); }
     function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]); }
+    function formatDate(value) { return value ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${value}T00:00:00`)) : '—'; }
+    function showToast(message) { clearTimeout(toastTimer); elements.toast.textContent = message; elements.toast.classList.add('visible'); toastTimer = setTimeout(() => elements.toast.classList.remove('visible'), 3000); }
+    function setBusy(value) { busy = value; document.querySelectorAll('button').forEach(button => { button.disabled = value; }); }
+    function showForm() { if (!supabaseClient) return; elements.modal.hidden = false; document.body.classList.add('modal-open'); document.getElementById('tenant-name').focus(); }
+    function hideForm() { elements.modal.hidden = true; document.body.classList.remove('modal-open'); elements.form.reset(); elements.error.textContent = ''; }
+
+    function showConfigurationMessage() {
+        elements.empty.hidden = false;
+        elements.emptyTitle.textContent = 'Supabase is not configured.';
+        elements.emptyCopy.textContent = 'Add your Supabase URL and anon key in config.js, then reload this page.';
+        document.getElementById('empty-add').hidden = true;
+    }
+
+    function normalizeTenant(row) {
+        const payment = Array.isArray(row.rent_payments) ? row.rent_payments[0] : row.rent_payments;
+        return { id: row.id, name: row.name, phone: row.phone || '', room: row.room_number, rent: Number(row.monthly_rent), joiningDate: row.joining_date, status: payment?.status === 'PAID' ? 'PAID' : 'UNPAID' };
+    }
+
+    async function loadTenants() {
+        if (!supabaseClient) { showConfigurationMessage(); return; }
+        setBusy(true);
+        const result = await supabaseClient.from('tenants').select('id,name,phone,room_number,monthly_rent,joining_date,rent_payments(id,month,year,amount,status,payment_date)').eq('rent_payments.month', currentMonthNumber).eq('rent_payments.year', currentYear).order('name');
+        setBusy(false);
+        if (result.error) { showToast('Unable to load tenants. Please try again.'); return; }
+        tenants = (result.data || []).map(normalizeTenant);
+        render();
+    }
 
     function getVisibleTenants() {
         const query = elements.search.value.trim().toLowerCase();
@@ -69,34 +92,46 @@
         document.getElementById('empty-add').hidden = noMatches;
     }
 
-    function formatDate(value) { return value ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${value}T00:00:00`)) : '—'; }
-    function showForm() { elements.modal.hidden = false; document.body.classList.add('modal-open'); document.getElementById('tenant-name').focus(); }
-    function hideForm() { elements.modal.hidden = true; document.body.classList.remove('modal-open'); elements.form.reset(); elements.error.textContent = ''; }
-    function showToast(message) { clearTimeout(toastTimer); elements.toast.textContent = message; elements.toast.classList.add('visible'); toastTimer = setTimeout(() => elements.toast.classList.remove('visible'), 2400); }
+    async function addTenant(event) {
+        event.preventDefault();
+        if (busy || !supabaseClient) return;
+        const data = new FormData(elements.form);
+        const name = data.get('name').trim();
+        const room = data.get('room').trim();
+        const rent = Number(data.get('rent'));
+        const joiningDate = data.get('joiningDate');
+        if (!name || !room || !joiningDate || !Number.isFinite(rent) || rent < 0) { elements.error.textContent = 'Please complete the required fields with a valid rent amount.'; return; }
+        setBusy(true);
+        const inserted = await supabaseClient.from('tenants').insert({ name, phone: data.get('phone').trim(), room_number: room, monthly_rent: rent, joining_date: joiningDate }).select('id').single();
+        if (inserted.error) { setBusy(false); elements.error.textContent = 'Unable to save tenant. Please try again.'; return; }
+        const payment = await supabaseClient.from('rent_payments').insert({ tenant_id: inserted.data.id, month: currentMonthNumber, year: currentYear, amount: rent, status: 'UNPAID' });
+        setBusy(false);
+        if (payment.error) { await supabaseClient.from('tenants').delete().eq('id', inserted.data.id); elements.error.textContent = 'Unable to create the rent record. Please try again.'; return; }
+        hideForm(); await loadTenants(); showToast('Tenant added');
+    }
+
+    async function togglePayment(tenant) {
+        if (busy || !supabaseClient) return;
+        const status = tenant.status === 'PAID' ? 'UNPAID' : 'PAID';
+        setBusy(true);
+        const result = await supabaseClient.from('rent_payments').upsert({ tenant_id: tenant.id, month: currentMonthNumber, year: currentYear, amount: tenant.rent, status, payment_date: status === 'PAID' ? new Date().toISOString().slice(0, 10) : null }, { onConflict: 'tenant_id,month,year' });
+        setBusy(false);
+        if (result.error) { showToast('Unable to update payment. Please try again.'); return; }
+        await loadTenants(); showToast(`Marked ${status.toLowerCase()}`);
+    }
+
+    async function deleteTenant(tenant) {
+        if (busy || !supabaseClient || !window.confirm(`Delete ${tenant.name}?`)) return;
+        setBusy(true);
+        const result = await supabaseClient.from('tenants').delete().eq('id', tenant.id);
+        setBusy(false);
+        if (result.error) { showToast('Unable to delete tenant. Please try again.'); return; }
+        await loadTenants(); showToast('Tenant deleted');
+    }
 
     function exportData() {
         const file = new Blob([JSON.stringify(tenants, null, 2)], { type: 'application/json' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(file);
-        link.download = `my-house-tenants-${monthKey}.json`;
-        link.click();
-        URL.revokeObjectURL(link.href);
-        showToast('JSON backup downloaded');
-    }
-
-    function importData(file) {
-        const reader = new FileReader();
-        reader.onload = () => {
-            try {
-                const imported = JSON.parse(reader.result);
-                if (!Array.isArray(imported) || imported.some(item => !item || typeof item.name !== 'string' || typeof item.room !== 'string' || !Number.isFinite(Number(item.rent)))) throw new Error('invalid format');
-                tenants = imported.map(item => ({ ...item, rent: Number(item.rent), status: item.status === 'PAID' ? 'PAID' : 'UNPAID' }));
-                saveTenants(); render(); showToast(`${tenants.length} tenant records imported`);
-            } catch (error) {
-                showToast('Import failed: invalid JSON file');
-            }
-        };
-        reader.readAsText(file);
+        const link = document.createElement('a'); link.href = URL.createObjectURL(file); link.download = `my-house-tenants-${currentYear}-${currentMonthNumber}.json`; link.click(); URL.revokeObjectURL(link.href);
     }
 
     document.getElementById('open-form').addEventListener('click', showForm);
@@ -104,39 +139,13 @@
     document.getElementById('close-form').addEventListener('click', hideForm);
     document.getElementById('cancel-form').addEventListener('click', hideForm);
     document.getElementById('export-data').addEventListener('click', exportData);
-    document.getElementById('import-data').addEventListener('click', () => elements.importFile.click());
-    elements.importFile.addEventListener('change', event => { if (event.target.files[0]) importData(event.target.files[0]); event.target.value = ''; });
+    document.getElementById('import-data').hidden = true;
     elements.modal.addEventListener('click', event => { if (event.target === elements.modal) hideForm(); });
     [elements.search, elements.filter, elements.sort].forEach(control => control.addEventListener('input', render));
-
-    elements.form.addEventListener('submit', event => {
-        event.preventDefault();
-        const data = new FormData(elements.form);
-        const name = data.get('name').trim();
-        const room = data.get('room').trim();
-        const rent = Number(data.get('rent'));
-        const joiningDate = data.get('joiningDate');
-        if (!name || !room || !joiningDate || !Number.isFinite(rent) || rent < 0) {
-            elements.error.textContent = 'Please complete the required fields with a valid rent amount.';
-            return;
-        }
-        tenants.push({ id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`, name, phone: data.get('phone').trim(), room, rent, joiningDate, status: 'UNPAID', month: monthKey });
-        saveTenants(); render(); hideForm(); showToast('Tenant added');
-    });
-
-    elements.list.addEventListener('click', event => {
-        const action = event.target.closest('[data-action]');
-        if (!action) return;
-        const tenant = tenants.find(item => item.id === action.dataset.id);
-        if (!tenant) return;
-        if (action.dataset.action === 'toggle') {
-            tenant.status = tenant.status === 'PAID' ? 'UNPAID' : 'PAID';
-            saveTenants(); render(); showToast(`Marked ${tenant.status.toLowerCase()}`);
-        } else if (action.dataset.action === 'delete' && window.confirm(`Delete ${tenant.name}?`)) {
-            tenants = tenants.filter(item => item.id !== tenant.id); saveTenants(); render(); showToast('Tenant deleted');
-        }
-    });
-
+    elements.form.addEventListener('submit', addTenant);
+    elements.list.addEventListener('click', event => { const action = event.target.closest('[data-action]'); if (!action) return; const tenant = tenants.find(item => item.id === action.dataset.id); if (!tenant) return; if (action.dataset.action === 'toggle') togglePayment(tenant); if (action.dataset.action === 'delete') deleteTenant(tenant); });
     document.addEventListener('keydown', event => { if (event.key === 'Escape' && !elements.modal.hidden) hideForm(); });
+
     render();
+    loadTenants();
 })();

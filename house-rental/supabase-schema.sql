@@ -23,6 +23,15 @@ create table if not exists public.rent_payments (
 alter table public.tenants enable row level security;
 alter table public.rent_payments enable row level security;
 
+drop policy if exists "Public can read tenants" on public.tenants;
+drop policy if exists "Public can add tenants" on public.tenants;
+drop policy if exists "Public can edit tenants" on public.tenants;
+drop policy if exists "Public can delete tenants" on public.tenants;
+drop policy if exists "Public can read rent payments" on public.rent_payments;
+drop policy if exists "Public can add rent payments" on public.rent_payments;
+drop policy if exists "Public can edit rent payments" on public.rent_payments;
+drop policy if exists "Public can delete rent payments" on public.rent_payments;
+
 create policy "Public can read tenants" on public.tenants for select to anon using (true);
 create policy "Public can add tenants" on public.tenants for insert to anon with check (true);
 create policy "Public can edit tenants" on public.tenants for update to anon using (true) with check (true);

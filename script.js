@@ -3,8 +3,6 @@
 
     const canvas = document.getElementById('board');
     const context = canvas.getContext('2d');
-    const threeCanvas = document.getElementById('three-board');
-    const boardWrap = document.querySelector('.board-wrap');
     const scoreElement = document.getElementById('score');
     const bestElement = document.getElementById('best');
     const speedElement = document.getElementById('speed');
@@ -36,13 +34,6 @@
     arenaCanvas.width = canvas.width;
     arenaCanvas.height = canvas.height;
     const arenaContext = arenaCanvas.getContext('2d');
-    let threeReady = false;
-    let threeRenderer;
-    let threeScene;
-    let threeCamera;
-    let threeSnakeMeshes = [];
-    let threeFoodMesh;
-    let threeFoodLight;
     let touchStart = null;
 
     bestElement.textContent = formatScore(best);
@@ -183,88 +174,12 @@
 
     function drawFrame(gameOver = false) {
         visualTime += 0.04;
-        if (threeReady) {
-            updateThreeScene(gameOver);
-            return;
-        }
         drawArena();
         drawFood();
         snake.slice().reverse().forEach((segment, reverseIndex) => {
             drawSnakeSegment(segment, snake.length - reverseIndex - 1, gameOver);
         });
         drawParticles();
-    }
-
-    function initThreeScene() {
-        if (!window.THREE || !threeCanvas) return;
-        try {
-            const THREE = window.THREE;
-            threeRenderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: true, alpha: false });
-            threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
-            threeRenderer.setSize(canvas.width, canvas.height, false);
-            threeRenderer.shadowMap.enabled = true;
-            threeRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            threeScene = new THREE.Scene();
-            threeScene.background = new THREE.Color('#071009');
-            threeCamera = new THREE.PerspectiveCamera(46, 1, 0.1, 100);
-            threeCamera.position.set(0, 18, 18);
-            threeCamera.lookAt(0, 0, 0);
-
-            threeScene.add(new THREE.HemisphereLight('#d8ffb0', '#08120b', 2.3));
-            const sun = new THREE.DirectionalLight('#efffd0', 4.5);
-            sun.position.set(-8, 16, 10); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); threeScene.add(sun);
-            threeFoodLight = new THREE.PointLight('#ff704f', 7, 8); threeScene.add(threeFoodLight);
-
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: '#14291a', roughness: 0.82, metalness: 0.08 }));
-            floor.rotation.x = -Math.PI / 2; floor.position.y = -0.05; floor.receiveShadow = true; threeScene.add(floor);
-            const grid = new THREE.GridHelper(32, gridSize, '#8dbb52', '#284d2d');
-            grid.position.y = 0.01; grid.material.opacity = 0.42; grid.material.transparent = true; threeScene.add(grid);
-            const rim = new THREE.Mesh(new THREE.BoxGeometry(32, 0.35, 32), new THREE.MeshStandardMaterial({ color: '#213c24', roughness: 0.7 }));
-            rim.position.y = -0.25; threeScene.add(rim);
-
-            const bodyGeometry = new THREE.SphereGeometry(0.58, 20, 14);
-            for (let i = 0; i < gridSize * gridSize; i += 1) {
-                const material = new THREE.MeshStandardMaterial({ color: '#8dd342', roughness: 0.38, metalness: 0.04 });
-                const mesh = new THREE.Mesh(bodyGeometry, material);
-                mesh.castShadow = true; mesh.receiveShadow = true; mesh.visible = false;
-                threeScene.add(mesh); threeSnakeMeshes.push(mesh);
-            }
-            threeFoodMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 2), new THREE.MeshStandardMaterial({ color: '#ff684d', emissive: '#8c1e12', emissiveIntensity: 2.2, roughness: 0.22 }));
-            threeFoodMesh.castShadow = true; threeScene.add(threeFoodMesh);
-            boardWrap.classList.add('three-active');
-            threeReady = true;
-            window.addEventListener('resize', resizeThreeScene, { passive: true });
-            resizeThreeScene();
-        } catch (error) {
-            console.warn('3D renderer unavailable; using fallback renderer.', error);
-        }
-    }
-
-    function resizeThreeScene() {
-        if (!threeRenderer || !threeCamera) return;
-        const size = Math.max(1, boardWrap.clientWidth);
-        threeRenderer.setSize(size, size, false);
-        threeCamera.aspect = 1;
-        threeCamera.updateProjectionMatrix();
-    }
-
-    function updateThreeScene(gameOver = false) {
-        const THREE = window.THREE;
-        snake.forEach((segment, index) => {
-            const mesh = threeSnakeMeshes[index];
-            mesh.visible = true;
-            mesh.position.set((segment.x - gridSize / 2 + 0.5) * 1.15, 0.58 + Math.sin(visualTime * 2 + index * 0.55) * 0.025, (segment.y - gridSize / 2 + 0.5) * 1.15);
-            const scale = index === 0 ? 1.16 : 1 - Math.min(index, 14) * 0.012;
-            mesh.scale.setScalar(scale);
-            mesh.material.color.set(gameOver ? '#81483d' : index === 0 ? '#dfff83' : '#8dd342');
-            mesh.material.emissive.set(gameOver ? '#2a0f0b' : index === 0 ? '#496d18' : '#122b0e');
-        });
-        for (let i = snake.length; i < threeSnakeMeshes.length; i += 1) threeSnakeMeshes[i].visible = false;
-        threeFoodMesh.position.set((food.x - gridSize / 2 + 0.5) * 1.15, 0.78 + Math.sin(visualTime * 3) * 0.16, (food.y - gridSize / 2 + 0.5) * 1.15);
-        threeFoodMesh.rotation.y += 0.035;
-        threeFoodLight.position.copy(threeFoodMesh.position);
-        threeFoodMesh.scale.setScalar(1 + Math.sin(visualTime * 3) * 0.12);
-        threeRenderer.render(threeScene, threeCamera);
     }
 
     function project(x, y) {
@@ -373,6 +288,5 @@
     restartButton.addEventListener('click', () => { clearInterval(timer); stopRenderLoop(); resetGame(); setState('ready', 'Press start to play'); });
 
     buildArena();
-    initThreeScene();
     resetGame();
 })();

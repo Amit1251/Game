@@ -1,6 +1,6 @@
 # Snake Arcade
 
-A responsive 3D Snake game for desktop, Android, iPhone, and tablets. It uses a local Three.js file and has a 2D canvas fallback.
+A responsive, high-performance 2D Snake game for desktop, Android, iPhone, and tablets.
 
 ## Run locally
 
@@ -43,4 +43,4 @@ Then on GitHub:
 
 Open that URL from any desktop browser, Android phone, iPhone, iPad, or tablet. The game uses relative asset paths, so it also works when the repository name appears in the URL.
 
-The 3D engine is stored in `vendor/three.min.js`, so the game does not need an internet connection after the project is downloaded.
+The game uses only native HTML, CSS, and JavaScript, so it has no backend or runtime dependency.

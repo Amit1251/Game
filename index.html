@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0d100f">
+    <meta name="description" content="A responsive 3D Snake game playable on desktop, mobile, and tablet devices.">
+    <title>Snake Arcade</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <main class="game-shell">
+        <section class="game-card" aria-label="Snake game">
+            <header class="game-header">
+                <div>
+                    <p class="eyebrow">LOCAL ARCADE // 001</p>
+                    <h1>Snake</h1>
+                </div>
+                <div class="header-mark" aria-hidden="true">SNAKE<span>_</span></div>
+            </header>
+
+            <div class="scorebar" aria-live="polite">
+                <div><span class="label">SCORE</span><strong id="score">0000</strong></div>
+                <div><span class="label">BEST</span><strong id="best">0000</strong></div>
+                <div><span class="label">SPEED</span><strong id="speed">01</strong></div>
+            </div>
+
+            <div class="board-wrap">
+                <canvas id="board" width="600" height="600" aria-label="Snake game board"></canvas>
+                <canvas id="three-board" width="600" height="600" aria-label="3D Snake game board"></canvas>
+                <div class="game-message" id="message">
+                    <p class="message-kicker">READY PLAYER ONE?</p>
+                    <h2 id="message-title">Press start to play</h2>
+                    <button class="primary-button" id="start-button" type="button">Start game</button>
+                    <p class="hint">Use arrow keys or WASD</p>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="secondary-button" id="pause-button" type="button" disabled>Pause</button>
+                <button class="secondary-button" id="restart-button" type="button">Restart</button>
+            </div>
+
+            <div class="touch-controls" aria-label="Touch controls">
+                <button data-direction="up" aria-label="Move up">&#9650;</button>
+                <div>
+                    <button data-direction="left" aria-label="Move left">&#9664;</button>
+                    <button data-direction="down" aria-label="Move down">&#9660;</button>
+                    <button data-direction="right" aria-label="Move right">&#9654;</button>
+                </div>
+            </div>
+
+            <footer class="game-footer">
+                <span>Eat the sparks. Grow the line.</span>
+                <span>Press <kbd>Space</kbd> to pause</span>
+            </footer>
+        </section>
+    </main>
+    <script src="vendor/three.min.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>

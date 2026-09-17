@@ -2,6 +2,8 @@
 
 Simple static tenant and monthly rent management app. It uses browser `localStorage`, so no backend, database, login, or internet connection is required.
 
+Use **Export JSON** to download a backup of the tenant records. Use **Import JSON** on another browser/device to restore that backup into its local storage.
+
 ## Run locally
 
 Open `index.html` directly in a browser, or serve the folder:
